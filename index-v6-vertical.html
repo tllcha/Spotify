@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Notion向け縦型グレースケールSpotifyウィジェット">
+  <title>Cloud Radio</title>
+
+  <!-- Spotify URLと文言は既存のconfig.jsを利用します。 -->
+  <script src="./config.js?v=6"></script>
+
+  <style>
+    :root {
+      --ink: #25292b;
+      --ink-soft: #596165;
+      --line: rgba(42, 48, 51, 0.18);
+      --panel: rgba(234, 237, 238, 0.84);
+      --player: #26292b;
+      --radius: clamp(14px, 5vw, 24px);
+      --pad: clamp(10px, 4vw, 18px);
+      --gap: clamp(7px, 2.4vh, 13px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    body {
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+    }
+
+    /*
+      Notionの埋め込み領域そのものを縦型カードにする。
+      外側の余白用レイヤーを持たないため、枠を縦長にすればカードもそのまま縦長になる。
+    */
+    .widget {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      grid-template-rows: auto minmax(72px, 1fr) auto auto;
+      gap: var(--gap);
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      padding: var(--pad);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: var(--radius);
+      background:
+        radial-gradient(ellipse at 76% 7%, rgba(255, 255, 255, 0.84) 0 5%, rgba(255, 255, 255, 0.24) 26%, transparent 52%),
+        radial-gradient(ellipse at 18% 41%, rgba(62, 68, 71, 0.18), transparent 46%),
+        radial-gradient(ellipse at 78% 69%, rgba(81, 87, 90, 0.13), transparent 42%),
+        linear-gradient(90deg,
+          transparent 0 10%, rgba(49, 55, 58, 0.055) 10% 17%, transparent 17% 43%,
+          rgba(255, 255, 255, 0.17) 43% 46%, transparent 46% 73%,
+          rgba(58, 64, 67, 0.05) 73% 80%, transparent 80% 100%),
+        linear-gradient(0deg,
+          transparent 0 15%, rgba(255, 255, 255, 0.18) 15% 19%, transparent 19% 49%,
+          rgba(55, 61, 64, 0.05) 49% 57%, transparent 57% 82%,
+          rgba(255, 255, 255, 0.14) 82% 84%, transparent 84% 100%),
+        linear-gradient(145deg, #e8ebec 0%, #c7ccce 52%, #aeb5b8 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.90),
+        inset 0 -1px 0 rgba(35, 40, 42, 0.10),
+        0 10px 28px rgba(14, 17, 18, 0.16);
+    }
+
+    .widget::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        linear-gradient(112deg, rgba(255, 255, 255, 0.28), transparent 38%, rgba(32, 36, 38, 0.08)),
+        repeating-linear-gradient(90deg, transparent 0 31px, rgba(255, 255, 255, 0.055) 31px 33px, transparent 33px 74px),
+        repeating-linear-gradient(0deg, transparent 0 52px, rgba(39, 45, 48, 0.035) 52px 56px, transparent 56px 109px);
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .title-group {
+      min-width: 0;
+    }
+
+    .kicker,
+    .footer,
+    .scene-label {
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .kicker {
+      margin: 0 0 3px;
+      color: var(--ink-soft);
+      font-size: clamp(0.43rem, 2.2vw, 0.60rem);
+      font-weight: 750;
+    }
+
+    h1 {
+      margin: 0;
+      overflow: hidden;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.05rem, 7.2vw, 1.65rem);
+      font-weight: 500;
+      letter-spacing: 0.045em;
+      line-height: 1.04;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      overflow: hidden;
+      color: #50585c;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(0.48rem, 2.6vw, 0.68rem);
+      font-style: italic;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .signal {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: flex-end;
+      gap: 3px;
+      height: 23px;
+      padding-top: 2px;
+    }
+
+    .signal span {
+      width: 4px;
+      border: 1px solid rgba(36, 41, 43, 0.32);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.30);
+    }
+
+    .signal span:nth-child(1) { height: 8px; }
+    .signal span:nth-child(2) { height: 18px; }
+    .signal span:nth-child(3) { height: 12px; }
+
+    .scene {
+      position: relative;
+      display: grid;
+      min-width: 0;
+      min-height: 0;
+      place-items: center;
+      overflow: hidden;
+      border: 1px solid rgba(44, 50, 53, 0.14);
+      border-radius: clamp(11px, 4vw, 18px);
+      background:
+        radial-gradient(ellipse at 63% 29%, rgba(255, 255, 255, 0.82), transparent 22%),
+        radial-gradient(ellipse at 31% 57%, rgba(63, 69, 72, 0.19), transparent 37%),
+        radial-gradient(ellipse at 76% 70%, rgba(87, 93, 96, 0.14), transparent 31%),
+        linear-gradient(156deg, rgba(236, 239, 240, 0.84), rgba(161, 169, 173, 0.75));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.70),
+        inset 0 -1px 0 rgba(32, 37, 39, 0.08);
+    }
+
+    .scene::before,
+    .scene::after {
+      content: "";
+      position: absolute;
+      pointer-events: none;
+    }
+
+    .scene::before {
+      inset: 0;
+      background:
+        linear-gradient(90deg,
+          transparent 0 18%, rgba(44, 50, 53, 0.055) 18% 25%, transparent 25% 62%,
+          rgba(255, 255, 255, 0.19) 62% 65%, transparent 65% 100%),
+        linear-gradient(0deg,
+          transparent 0 24%, rgba(255, 255, 255, 0.17) 24% 29%, transparent 29% 64%,
+          rgba(50, 56, 59, 0.045) 64% 72%, transparent 72% 100%);
+    }
+
+    .scene::after {
+      width: 58%;
+      aspect-ratio: 1;
+      border: 1px solid rgba(47, 53, 56, 0.12);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02) 56%, transparent 57%);
+      box-shadow:
+        0 0 0 11px rgba(255, 255, 255, 0.035),
+        0 0 0 22px rgba(36, 41, 43, 0.025);
+    }
+
+    .station {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      width: min(78%, 220px);
+      place-items: center;
+      gap: clamp(5px, 1.6vh, 10px);
+      text-align: center;
+    }
+
+    .scene-label {
+      margin: 0;
+      color: #596165;
+      font-size: clamp(0.42rem, 2.1vw, 0.58rem);
+      font-weight: 800;
+    }
+
+    .dial {
+      display: grid;
+      width: clamp(46px, 20vw, 72px);
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid rgba(39, 44, 47, 0.22);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 36% 31%, rgba(255, 255, 255, 0.86), rgba(222, 226, 227, 0.70) 34%, rgba(114, 121, 125, 0.43) 69%, rgba(55, 61, 64, 0.62) 100%);
+      box-shadow:
+        inset 0 1px 2px rgba(255, 255, 255, 0.76),
+        0 5px 14px rgba(31, 35, 37, 0.14);
+    }
+
+    .dial::before {
+      content: "";
+      width: 38%;
+      aspect-ratio: 1;
+      border: 1px solid rgba(34, 39, 42, 0.32);
+      border-radius: 50%;
+      background: rgba(245, 247, 247, 0.46);
+    }
+
+    .wave {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 18px;
+    }
+
+    .wave i {
+      display: block;
+      width: 3px;
+      border-radius: 999px;
+      background: rgba(45, 51, 54, 0.55);
+    }
+
+    .wave i:nth-child(1),
+    .wave i:nth-child(9) { height: 5px; }
+    .wave i:nth-child(2),
+    .wave i:nth-child(8) { height: 10px; }
+    .wave i:nth-child(3),
+    .wave i:nth-child(7) { height: 15px; }
+    .wave i:nth-child(4),
+    .wave i:nth-child(6) { height: 8px; }
+    .wave i:nth-child(5) { height: 18px; }
+
+    .player-slot {
+      min-width: 0;
+      overflow: hidden;
+      border-radius: 12px;
+      background: var(--player);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 5px 15px rgba(22, 25, 26, 0.16);
+    }
+
+    #spotify-player {
+      display: block;
+      width: 100%;
+      height: 152px;
+      border: 0;
+      background: var(--player);
+    }
+
+    html[data-grayscale-player="true"] #spotify-player {
+      filter: grayscale(1) saturate(0);
+    }
+
+    .setup-message {
+      display: grid;
+      min-height: 152px;
+      place-content: center;
+      gap: 6px;
+      padding: 14px;
+      text-align: center;
+      color: #edf0f1;
+    }
+
+    .setup-message strong {
+      font-size: clamp(0.72rem, 4vw, 0.92rem);
+    }
+
+    .setup-message span {
+      color: #b7bdc0;
+      font-size: clamp(0.56rem, 2.8vw, 0.72rem);
+    }
+
+    .setup-message code {
+      padding: 0.08em 0.3em;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.10);
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+      overflow: hidden;
+      color: #596165;
+      font-size: clamp(0.39rem, 1.9vw, 0.54rem);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    /* 高さを詰めてもスクロールさせず、装飾を順番に減らす。 */
+    @media (max-height: 410px) {
+      :root {
+        --pad: 9px;
+        --gap: 7px;
+      }
+
+      .widget {
+        grid-template-rows: auto minmax(44px, 1fr) auto;
+      }
+
+      .subtitle,
+      .footer {
+        display: none;
+      }
+
+      .station {
+        gap: 4px;
+      }
+
+      .scene-label,
+      .wave {
+        display: none;
+      }
+
+      .dial {
+        width: clamp(38px, 16vw, 55px);
+      }
+    }
+
+    @media (max-height: 330px) {
+      .widget {
+        grid-template-rows: auto minmax(0, 1fr) auto;
+      }
+
+      .scene {
+        min-height: 24px;
+      }
+
+      .dial {
+        width: 34px;
+      }
+
+      .kicker,
+      .signal {
+        display: none;
+      }
+
+      h1 {
+        font-size: 0.95rem;
+      }
+    }
+
+    @media (max-width: 220px) {
+      :root {
+        --pad: 8px;
+      }
+
+      .subtitle,
+      .signal,
+      .scene-label {
+        display: none;
+      }
+
+      h1 {
+        font-size: 0.98rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="widget" aria-labelledby="widget-title">
+    <header class="header">
+      <div class="title-group">
+        <p class="kicker" id="widget-kicker">NOTION AUDIO</p>
+        <h1 id="widget-title">CLOUD RADIO</h1>
+        <p class="subtitle" id="widget-subtitle">quiet frequencies for a cloudy room</p>
+      </div>
+
+      <div class="signal" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+    </header>
+
+    <section class="scene" aria-hidden="true">
+      <div class="station">
+        <p class="scene-label">Overcast frequency</p>
+        <div class="dial"></div>
+        <div class="wave">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+      </div>
+    </section>
+
+    <section class="player-slot" aria-label="Spotify player">
+      <iframe
+        id="spotify-player"
+        title="Spotify Embed"
+        width="456"
+        height="152"
+        frameborder="0"
+        allowfullscreen
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="eager"
+        scrolling="no"
+        referrerpolicy="strict-origin-when-cross-origin"
+        hidden
+      ></iframe>
+
+      <div class="setup-message" id="setup-message" hidden>
+        <strong>Spotify URLを設定してください</strong>
+        <span><code>config.js</code> の <code>spotifyUrl</code> を変更します。</span>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span id="footer-label">OVERCAST SESSION</span>
+      <span>GRAY SCALE / 01</span>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const config = window.WIDGET_CONFIG ?? {};
+      const root = document.documentElement;
+      const player = document.getElementById("spotify-player");
+      const setupMessage = document.getElementById("setup-message");
+
+      const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element && typeof value === "string" && value.trim()) {
+          element.textContent = value.trim();
+        }
+      };
+
+      const toEmbedUrl = (input) => {
+        if (typeof input !== "string" || !input.trim()) return null;
+
+        const value = input.trim();
+        const allowedTypes = new Set([
+          "track", "album", "playlist", "artist", "show", "episode"
+        ]);
+
+        if (value.startsWith("spotify:")) {
+          const [, type, id] = value.split(":");
+          return allowedTypes.has(type) && id
+            ? `https://open.spotify.com/embed/${type}/${encodeURIComponent(id)}?utm_source=generator&theme=0`
+            : null;
+        }
+
+        try {
+          const url = new URL(value);
+          if (url.hostname !== "open.spotify.com") return null;
+
+          const parts = url.pathname.split("/").filter(Boolean);
+          const offset = parts[0] === "embed" ? 1 : 0;
+          const type = parts[offset];
+          const id = parts[offset + 1];
+
+          return allowedTypes.has(type) && id
+            ? `https://open.spotify.com/embed/${type}/${encodeURIComponent(id)}?utm_source=generator&theme=0`
+            : null;
+        } catch {
+          return null;
+        }
+      };
+
+      setText("widget-title", config.title);
+      setText("widget-subtitle", config.subtitle);
+      setText("widget-kicker", config.kicker);
+      setText("footer-label", config.footerLabel);
+
+      root.dataset.grayscalePlayer = config.grayscalePlayer === false ? "false" : "true";
+
+      const embedUrl = toEmbedUrl(config.spotifyUrl);
+
+      if (!embedUrl) {
+        player.hidden = true;
+        setupMessage.hidden = false;
+        return;
+      }
+
+      setupMessage.remove();
+      player.hidden = false;
+      player.src = embedUrl;
+    })();
+  </script>
+</body>
+</html>
