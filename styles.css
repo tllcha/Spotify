@@ -1,0 +1,294 @@
+:root {
+  --ink-strong: #272b2d;
+  --ink: #4b5154;
+  --ink-soft: #747c80;
+  --paper: rgba(235, 239, 240, 0.78);
+  --line: rgba(48, 54, 57, 0.18);
+  --shadow: rgba(26, 30, 32, 0.23);
+  --radius-outer: 28px;
+  --radius-inner: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #aeb4b7;
+  color: var(--ink-strong);
+}
+
+.widget-shell {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  place-items: center;
+  padding: clamp(12px, 2.5vw, 30px);
+  overflow: hidden;
+  background: #aeb4b7;
+}
+
+.sky-layer,
+.plaid-layer,
+.mist-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sky-layer {
+  z-index: -4;
+  background:
+    linear-gradient(rgba(36, 40, 42, 0.12), rgba(36, 40, 42, 0.18)),
+    url("./assets/cloudy-sky-gray.webp") center 42% / cover no-repeat;
+  transform: scale(1.035);
+}
+
+.plaid-layer {
+  z-index: -3;
+  background: url("./assets/plaid-gray.webp") center / cover no-repeat;
+  mix-blend-mode: soft-light;
+  opacity: 0.28;
+}
+
+.mist-layer {
+  z-index: -2;
+  background:
+    radial-gradient(circle at 72% 12%, rgba(255, 255, 255, 0.42), transparent 35%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.10), transparent 42%, rgba(30, 34, 36, 0.08));
+}
+
+.widget-card {
+  width: min(820px, 100%);
+  max-height: 100%;
+  padding: clamp(17px, 2.6vw, 28px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: var(--radius-outer);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 55%),
+    var(--paper);
+  box-shadow:
+    0 24px 70px var(--shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(15px) saturate(0.45);
+  -webkit-backdrop-filter: blur(15px) saturate(0.45);
+}
+
+.widget-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.eyebrow,
+.widget-footer {
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin: 0 0 7px;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.65rem, 4.1vw, 3.15rem);
+  font-weight: 500;
+  letter-spacing: 0.055em;
+  line-height: 0.98;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  margin: 11px 0 0;
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(0.82rem, 1.7vw, 1.02rem);
+  font-style: italic;
+}
+
+.weather-mark {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: 5px;
+  min-width: 48px;
+  height: 30px;
+  padding-top: 5px;
+}
+
+.weather-mark span {
+  display: block;
+  width: 7px;
+  border: 1px solid rgba(39, 43, 45, 0.28);
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.weather-mark span:nth-child(1) { height: 12px; }
+.weather-mark span:nth-child(2) { height: 25px; }
+.weather-mark span:nth-child(3) { height: 18px; }
+
+.divider {
+  height: 1px;
+  margin: 18px 0;
+  background: linear-gradient(90deg, transparent, var(--line) 8%, var(--line) 92%, transparent);
+}
+
+.player-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(33, 38, 40, 0.16);
+  border-radius: var(--radius-inner);
+  background: rgba(35, 39, 41, 0.92);
+  box-shadow:
+    0 13px 38px rgba(23, 27, 29, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11);
+}
+
+.player-frame::before {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+#spotify-player {
+  display: block;
+  width: 100%;
+  min-height: 152px;
+  border: 0;
+  background: #303537;
+  transition: height 160ms ease;
+}
+
+html[data-grayscale-player="true"] #spotify-player {
+  filter: grayscale(1) saturate(0);
+}
+
+.setup-message {
+  min-height: 152px;
+  padding: 26px 18px;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  text-align: center;
+  color: #e5e8e9;
+}
+
+.setup-message strong {
+  font-size: 1rem;
+}
+
+.setup-message span {
+  color: #b9bfc2;
+  font-size: 0.82rem;
+}
+
+.setup-message code {
+  padding: 0.1em 0.38em;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.widget-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  color: var(--ink-soft);
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+/* Notionの細いカラム向け。プレイヤーを152pxのコンパクト表示へ切り替える。 */
+html[data-layout="compact"] .widget-shell {
+  padding: 8px;
+}
+
+html[data-layout="compact"] .widget-card {
+  width: 100%;
+  padding: 13px;
+  border-radius: 18px;
+}
+
+html[data-layout="compact"] .widget-header {
+  gap: 8px;
+}
+
+html[data-layout="compact"] .eyebrow,
+html[data-layout="compact"] .subtitle,
+html[data-layout="compact"] .weather-mark {
+  display: none;
+}
+
+html[data-layout="compact"] h1 {
+  font-size: clamp(1rem, 7vw, 1.35rem);
+  letter-spacing: 0.035em;
+}
+
+html[data-layout="compact"] .divider {
+  margin: 10px 0;
+}
+
+html[data-layout="compact"] .player-frame {
+  border-radius: 14px;
+}
+
+html[data-layout="compact"] .widget-footer {
+  margin-top: 9px;
+  font-size: 0.48rem;
+  letter-spacing: 0.14em;
+}
+
+html[data-layout="compact"] .widget-footer span:nth-child(2) {
+  display: none;
+}
+
+/* 埋め込み枠の高さが極端に低い場合は、装飾をさらに削って収める。 */
+@media (max-height: 270px) {
+  .widget-header,
+  .divider,
+  .widget-footer {
+    display: none;
+  }
+
+  .widget-card {
+    padding: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

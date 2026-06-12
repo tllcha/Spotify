@@ -1,0 +1,19 @@
+【既存リポジトリを更新する場合】
+
+1. GitHubリポジトリで styles.css を開く
+2. 右上の鉛筆アイコン Edit this file を押す
+3. このZIP内の styles.css の内容へ全置換して Commit changes
+4. 同様に app.js も全置換して Commit changes
+
+config.js は、現在設定済みのSpotify URLを残したい場合は上書き不要です。
+古いconfig.jsのままでも自動コンパクト化は動作します。
+
+任意で次の設定を config.js の末尾に追加できます。
+
+  layout: "auto",
+  compactBreakpoint: 420,
+  compactPlayerHeight: 152,
+  grayscalePlayer: true
+
+GitHub Pagesへの反映は通常1〜数分です。
+Notion側では、埋め込みブロックの高さを約280〜320pxにするとコンパクト版が収まりやすくなります。
