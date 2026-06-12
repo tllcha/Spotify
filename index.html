@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Notion向けグレースケールSpotifyウィジェット">
+  <title>Cloud Radio</title>
+
+  <!-- Spotify URLと表示文言は既存のconfig.jsをそのまま利用します。 -->
+  <script src="./config.js?v=5"></script>
+
+  <style>
+    :root {
+      --ink: #25292b;
+      --ink-muted: #666e72;
+      --line: rgba(44, 49, 52, 0.18);
+      --surface: rgba(226, 230, 231, 0.88);
+      --player-bg: #292d2f;
+      --radius: clamp(12px, 4vw, 22px);
+      --pad: clamp(7px, 3.2vw, 17px);
+      --gap: clamp(5px, 1.7vw, 10px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    body {
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+    }
+
+    /*
+      外側の背景と内側カードを分けず、埋め込み領域そのものを一枚のカードにする。
+      これにより、Notion側で高さを変えても灰色の余白だけが残らない。
+    */
+    .widget {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: var(--gap);
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      padding: var(--pad);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.68);
+      border-radius: var(--radius);
+      background:
+        radial-gradient(ellipse at 74% 9%, rgba(255, 255, 255, 0.72) 0 7%, rgba(255, 255, 255, 0.18) 31%, transparent 54%),
+        radial-gradient(ellipse at 18% 55%, rgba(73, 78, 81, 0.17), transparent 48%),
+        linear-gradient(90deg,
+          transparent 0 11%, rgba(69, 75, 78, 0.075) 11% 17%, transparent 17% 39%,
+          rgba(255, 255, 255, 0.20) 39% 41%, transparent 41% 71%,
+          rgba(68, 73, 76, 0.065) 71% 77%, transparent 77% 100%),
+        linear-gradient(0deg,
+          transparent 0 16%, rgba(255, 255, 255, 0.19) 16% 20%, transparent 20% 48%,
+          rgba(61, 67, 70, 0.055) 48% 56%, transparent 56% 83%,
+          rgba(255, 255, 255, 0.15) 83% 85%, transparent 85% 100%),
+        linear-gradient(135deg, rgba(246, 248, 248, 0.76), rgba(174, 180, 183, 0.84)),
+        #c2c7c9;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.82),
+        inset 0 -1px 0 rgba(45, 50, 53, 0.10),
+        0 10px 30px rgba(15, 18, 19, 0.16);
+    }
+
+    .widget::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: linear-gradient(115deg, rgba(255, 255, 255, 0.22), transparent 42%, rgba(34, 38, 40, 0.07));
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      min-width: 0;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: var(--gap);
+    }
+
+    .title-group {
+      min-width: 0;
+    }
+
+    .kicker,
+    .subtitle,
+    .footer {
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .kicker {
+      margin: 0 0 3px;
+      color: var(--ink-muted);
+      font-size: clamp(0.42rem, 1.8vw, 0.62rem);
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      overflow: hidden;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(0.95rem, 5.7vw, 2.25rem);
+      font-weight: 500;
+      letter-spacing: 0.045em;
+      line-height: 1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      overflow: hidden;
+      color: #50575a;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(0.46rem, 1.8vw, 0.72rem);
+      font-style: italic;
+      letter-spacing: 0.06em;
+      text-overflow: ellipsis;
+      text-transform: none;
+      white-space: nowrap;
+    }
+
+    .signal {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: flex-end;
+      gap: 3px;
+      height: 20px;
+      padding-top: 2px;
+    }
+
+    .signal span {
+      width: 4px;
+      border: 1px solid rgba(37, 41, 43, 0.31);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.28);
+    }
+
+    .signal span:nth-child(1) { height: 8px; }
+    .signal span:nth-child(2) { height: 17px; }
+    .signal span:nth-child(3) { height: 12px; }
+
+    .player-slot {
+      position: relative;
+      display: grid;
+      min-width: 0;
+      min-height: 0;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .player-canvas {
+      position: relative;
+      flex: none;
+      overflow: hidden;
+      border: 1px solid rgba(30, 34, 36, 0.18);
+      border-radius: clamp(9px, 2.8vw, 15px);
+      background: var(--player-bg);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.10),
+        0 6px 18px rgba(20, 23, 25, 0.16);
+      transform: translateZ(0);
+    }
+
+    #spotify-player {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: block;
+      max-width: none;
+      border: 0;
+      background: var(--player-bg);
+      transform-origin: top left;
+    }
+
+    html[data-grayscale-player="true"] #spotify-player {
+      filter: grayscale(1) saturate(0);
+    }
+
+    .setup-message {
+      display: grid;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      place-content: center;
+      gap: 5px;
+      padding: 12px;
+      text-align: center;
+      color: #eef0f1;
+    }
+
+    .setup-message strong {
+      font-size: clamp(0.72rem, 4vw, 0.95rem);
+    }
+
+    .setup-message span {
+      color: #b8bec1;
+      font-size: clamp(0.56rem, 2.6vw, 0.75rem);
+    }
+
+    .setup-message code {
+      padding: 0.08em 0.3em;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.10);
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      min-width: 0;
+      gap: 8px;
+      overflow: hidden;
+      color: #5d6569;
+      font-size: clamp(0.38rem, 1.7vw, 0.55rem);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* 狭い幅では装飾を減らし、プレイヤーへ面積を譲る。 */
+    .widget[data-density="compact"] .kicker,
+    .widget[data-density="compact"] .subtitle,
+    .widget[data-density="compact"] .signal {
+      display: none;
+    }
+
+    .widget[data-density="compact"] .header {
+      align-items: center;
+      padding-bottom: 5px;
+    }
+
+    .widget[data-density="compact"] h1 {
+      font-size: clamp(0.82rem, 6.1vw, 1.2rem);
+    }
+
+    /* 極小サイズではSpotifyプレイヤーだけを残す。 */
+    .widget[data-density="tiny"] {
+      grid-template-rows: minmax(0, 1fr);
+      padding: 4px;
+      gap: 0;
+      border-radius: 10px;
+    }
+
+    .widget[data-density="tiny"] .header,
+    .widget[data-density="tiny"] .footer {
+      display: none;
+    }
+
+    .widget[data-density="tiny"] .player-canvas {
+      border-radius: 8px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="widget" id="widget" data-density="normal" aria-labelledby="widget-title">
+    <header class="header">
+      <div class="title-group">
+        <p class="kicker" id="widget-kicker">NOTION AUDIO</p>
+        <h1 id="widget-title">CLOUD RADIO</h1>
+        <p class="subtitle" id="widget-subtitle">quiet frequencies for a cloudy room</p>
+      </div>
+
+      <div class="signal" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+    </header>
+
+    <section class="player-slot" id="player-slot" aria-label="Spotify player">
+      <div class="player-canvas" id="player-canvas">
+        <iframe
+          id="spotify-player"
+          title="Spotify Embed"
+          width="456"
+          height="352"
+          frameborder="0"
+          allowfullscreen
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="eager"
+          scrolling="no"
+          referrerpolicy="strict-origin-when-cross-origin"
+          hidden
+        ></iframe>
+      </div>
+
+      <div class="setup-message" id="setup-message" hidden>
+        <strong>Spotify URLを設定してください</strong>
+        <span><code>config.js</code> の <code>spotifyUrl</code> を変更します。</span>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span id="footer-label">OVERCAST SESSION</span>
+      <span>GRAY SCALE / 01</span>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const config = window.WIDGET_CONFIG ?? {};
+      const root = document.documentElement;
+      const widget = document.getElementById("widget");
+      const slot = document.getElementById("player-slot");
+      const canvas = document.getElementById("player-canvas");
+      const player = document.getElementById("spotify-player");
+      const setupMessage = document.getElementById("setup-message");
+
+      const EMBED_MIN_WIDTH = 300;
+      const EMBED_MAX_WIDTH = 456;
+      const EMBED_COMPACT_HEIGHT = 152;
+      const EMBED_FULL_HEIGHT = 352;
+
+      let currentEmbedWidth = 0;
+      let currentEmbedHeight = 0;
+      let resizeFrame = 0;
+
+      const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element && typeof value === "string" && value.trim()) {
+          element.textContent = value.trim();
+        }
+      };
+
+      const toEmbedUrl = (input) => {
+        if (typeof input !== "string" || !input.trim()) return null;
+
+        const value = input.trim();
+        const allowedTypes = new Set([
+          "track", "album", "playlist", "artist", "show", "episode"
+        ]);
+
+        if (value.startsWith("spotify:")) {
+          const [, type, id] = value.split(":");
+          return allowedTypes.has(type) && id
+            ? `https://open.spotify.com/embed/${type}/${encodeURIComponent(id)}?utm_source=generator&theme=0`
+            : null;
+        }
+
+        try {
+          const url = new URL(value);
+          if (url.hostname !== "open.spotify.com") return null;
+
+          const parts = url.pathname.split("/").filter(Boolean);
+          const offset = parts[0] === "embed" ? 1 : 0;
+          const type = parts[offset];
+          const id = parts[offset + 1];
+
+          return allowedTypes.has(type) && id
+            ? `https://open.spotify.com/embed/${type}/${encodeURIComponent(id)}?utm_source=generator&theme=0`
+            : null;
+        } catch {
+          return null;
+        }
+      };
+
+      const chooseDensity = (width, height) => {
+        if (width < 185 || height < 115) return "tiny";
+        if (width < 300 || height < 220) return "compact";
+        return "normal";
+      };
+
+      const chooseEmbedHeight = (width, height) => {
+        // 縦長・正方形寄りではフルプレイヤー、横長・低い領域ではコンパクト。
+        const aspect = width / Math.max(height, 1);
+        return height >= 210 && aspect < 1.9
+          ? EMBED_FULL_HEIGHT
+          : EMBED_COMPACT_HEIGHT;
+      };
+
+      const layoutPlayer = () => {
+        resizeFrame = 0;
+
+        const widgetWidth = Math.max(1, widget.clientWidth);
+        const widgetHeight = Math.max(1, widget.clientHeight);
+        widget.dataset.density = chooseDensity(widgetWidth, widgetHeight);
+
+        // density変更後にグリッドが組み直されるため、次のフレームで実寸を読む。
+        requestAnimationFrame(() => {
+          const slotWidth = Math.max(1, slot.clientWidth);
+          const slotHeight = Math.max(1, slot.clientHeight);
+          const embedHeight = chooseEmbedHeight(slotWidth, slotHeight);
+          const targetAspect = slotWidth / Math.max(slotHeight, 1);
+          const embedWidth = Math.round(Math.min(
+            EMBED_MAX_WIDTH,
+            Math.max(EMBED_MIN_WIDTH, targetAspect * embedHeight)
+          ));
+          const scale = Math.min(1, slotWidth / embedWidth, slotHeight / embedHeight);
+          const safeScale = Math.max(0.08, scale);
+
+          if (currentEmbedWidth !== embedWidth || currentEmbedHeight !== embedHeight) {
+            currentEmbedWidth = embedWidth;
+            currentEmbedHeight = embedHeight;
+            player.width = String(embedWidth);
+            player.height = String(embedHeight);
+            player.style.width = `${embedWidth}px`;
+            player.style.height = `${embedHeight}px`;
+          }
+
+          const renderedWidth = Math.max(1, Math.floor(embedWidth * safeScale));
+          const renderedHeight = Math.max(1, Math.floor(embedHeight * safeScale));
+
+          canvas.style.width = `${renderedWidth}px`;
+          canvas.style.height = `${renderedHeight}px`;
+          player.style.transform = `scale(${safeScale})`;
+        });
+      };
+
+      const scheduleLayout = () => {
+        if (resizeFrame) cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(layoutPlayer);
+      };
+
+      setText("widget-title", config.title);
+      setText("widget-subtitle", config.subtitle);
+      setText("widget-kicker", config.kicker);
+      setText("footer-label", config.footerLabel);
+
+      root.dataset.grayscalePlayer = config.grayscalePlayer === false ? "false" : "true";
+
+      const embedUrl = toEmbedUrl(config.spotifyUrl);
+
+      if (!embedUrl) {
+        player.hidden = true;
+        canvas.hidden = true;
+        setupMessage.hidden = false;
+      } else {
+        setupMessage.remove();
+        canvas.hidden = false;
+        player.hidden = false;
+        player.src = embedUrl;
+      }
+
+      if ("ResizeObserver" in window) {
+        const observer = new ResizeObserver(scheduleLayout);
+        observer.observe(widget);
+      } else {
+        window.addEventListener("resize", scheduleLayout, { passive: true });
+      }
+
+      scheduleLayout();
+    })();
+  </script>
+</body>
+</html>
